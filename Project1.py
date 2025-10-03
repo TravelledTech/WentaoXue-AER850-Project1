@@ -33,12 +33,11 @@ plt.show
 plt.figure()
 corr_matrix = data.corr()
 sns.heatmap(np.abs(corr_matrix))
-# X has high correlation even with that big jump in data?
-# Shouldnt z be the most correlated?
 
 # ================ 2.4: Classification Model ================
 
 # Start with stratified splitter
+# ---Need to add scaling and maybe pipeline---
 from sklearn.model_selection import StratifiedShuffleSplit
 
 my_splitter = StratifiedShuffleSplit(n_splits = 1, test_size = 0.2, random_state = 42)
@@ -198,3 +197,5 @@ precision4 = precision_score(y_test, y_pred4, average='macro')
 accuracy4 = accuracy_score(y_test, y_pred4)
 
 print("Stacking Classifier F1: \t", f14, "\tprecision: ", precision4, "\taccuracy: ", accuracy4)
+
+# ================ 2.7: Model Evaluation ================
