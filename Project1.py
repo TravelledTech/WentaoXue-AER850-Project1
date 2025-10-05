@@ -24,8 +24,9 @@ plt.grid(True, alpha=0.3)
 plt.xticks(range(1, 14))
 plt.xlabel("Step")
 plt.ylabel("Position")
+plt.title("Training Data Position vs. Step")
 plt.legend()
-plt.show
+plt.show()
 
 # ================ 2.3: Correlation Analysis ================
 
@@ -33,11 +34,11 @@ plt.show
 plt.figure()
 corr_matrix = data.corr()
 sns.heatmap(np.abs(corr_matrix))
+plt.title("Pearson Correlation Matrix")
 
 # ================ 2.4: Classification Model ================
 
-# Start with stratified splitter
-# ---Need to add scaling and maybe pipeline---
+# First Split Data
 from sklearn.model_selection import StratifiedShuffleSplit
 
 my_splitter = StratifiedShuffleSplit(n_splits = 1, test_size = 0.2, random_state = 42)
@@ -54,8 +55,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
-#Not sure why I did this
 # mdl1 = RandomForestClassifier(n_estimators=100, random_state=42)
 # mdl2 = DecisionTreeClassifier(criterion='gini', max_depth=5, min_samples_split=2, min_samples_leaf=2, random_state=42)
 # # Start with max depth of 5, I got no clue what min samples split and leaf should be, 
@@ -81,25 +83,35 @@ from sklearn.svm import SVC
 
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, KFold
 
-#1 and 2 will use gridsearch, 3 will use random
+# 1 and 2 will use gridsearch, 3 will use random
 
-param_grid1 = {    'n_estimators': [30, 50, 80],    #Increase it slightly from the original
-    'max_depth': [None, 10, 20, 30],
-    'min_samples_split': [2, 5, 10],
-    'min_samples_leaf': [1, 2, 4],
-    'max_features': ['sqrt', 'log2'],}
-param_grid2 = {'max_depth': [None, 5, 10, 20],
-    'min_samples_split': [2, 5, 10],
-    'min_samples_leaf': [1, 2, 4],
-    'criterion': ['gini', 'entropy'],}
-param_grid3 = {'C': [0.1, 1, 10],
-    'gamma': ['scale', 0.1, 0.01],
-    'kernel': ['rbf']}
+pipe1 = Pipeline([("scaler", StandardScaler()),
+                  ("clf", RandomForestClassifier(random_state=42))])
+pipe2 = Pipeline([("scaler", StandardScaler()),
+                  ("clf", DecisionTreeClassifier(random_state=42))])
+pipe3 = Pipeline([("scaler", StandardScaler()),
+                  ("clf", SVC())])
+
+param_grid1 = {'clf__n_estimators': [5, 10, 20, 30, 50],    #Increase it slightly from the original
+    'clf__max_depth': [None, 5, 10, 20],
+    'clf__min_samples_split': [2, 5, 10, 15],
+    'clf__min_samples_leaf': [1, 2, 4],
+    'clf__max_features': ['sqrt', 'log2'],
+    'clf__criterion': ['gini', 'entropy']}
+param_grid2 = {'clf__max_depth': [None, 5, 10, 20], #Pretty much the same values as param1
+    'clf__min_samples_split': [2, 5, 10, 15],
+    'clf__min_samples_leaf': [1, 2, 4],
+    'clf__max_features': ['sqrt', 'log2'],
+    'clf__criterion': ['gini', 'entropy']}
+param_grid3 = {'clf__C': [0.1, 1, 10, 100, 1000],
+    'clf__gamma': ['scale', 0.1, 0.01, 0.001],
+    'clf__kernel': ['rbf', 'linear', 'poly', 'sigmoid']}
 
 cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
+# Create and train grids
 grid1 = GridSearchCV(
-    RandomForestClassifier(random_state=42),
+    pipe1,
     param_grid1,
     cv=cv,
     scoring='accuracy',
@@ -108,7 +120,7 @@ grid1 = GridSearchCV(
 grid1.fit(x_train, y_train)
 
 grid2 = GridSearchCV(
-    DecisionTreeClassifier(random_state=42),
+    pipe2,
     param_grid2,
     cv=cv,
     scoring='accuracy',
@@ -117,7 +129,7 @@ grid2 = GridSearchCV(
 grid2.fit(x_train, y_train)
 
 grid3 = RandomizedSearchCV(
-    SVC(),
+    pipe3,
     param_grid3,
     cv=cv,
     scoring='accuracy',
@@ -125,14 +137,16 @@ grid3 = RandomizedSearchCV(
 )
 grid3.fit(x_train, y_train)
 
-print("Random Forest best params:", grid1.best_params_)
-print("Random Forest best CV score:", grid1.best_score_)
-
-print("Decision Tree best params:", grid2.best_params_)
-print("Decision Tree best CV score:", grid2.best_score_)
-
-print("SVM best params:", grid3.best_params_)
-print("SVM best CV score:", grid3.best_score_)
+# print("")
+# print("Random Forest best params:", grid1.best_params_)
+# print("Random Forest best CV score:", grid1.best_score_)
+# print("")
+# print("Decision Tree best params:", grid2.best_params_)
+# print("Decision Tree best CV score:", grid2.best_score_)
+# print("")
+# print("SVM best params:", grid3.best_params_)
+# print("SVM best CV score:", grid3.best_score_)
+# print("")
 
 # ================ 2.5: Model Performance ================
 
@@ -159,19 +173,36 @@ print("Random Forest F1: \t", f11, "\tprecision: ", precision1, "\taccuracy: ", 
 print("Decision Tree F1: \t", f12, "\tprecision: ", precision2, "\taccuracy: ", accuracy2)
 print("SVM F1: \t\t\t", f13, "\tprecision: ", precision3, "\taccuracy: ", accuracy3)
 
+#Create confusion matrix
 cf1 = confusion_matrix(y_test, y_pred1)
 cf2 = confusion_matrix(y_test, y_pred2)
 cf3 = confusion_matrix(y_test, y_pred3)
 
-print("Random Forest Confusion Matrix")
-print(cf1)
-print("Decision Tree Confusion Matrix")
-print(cf2)
-print("SVM Confusion Matrix")
-print(cf3)
+#Plot each of the confusion matrix
+plt.figure()
+sns.heatmap(cf1)
+plt.title("Random Forest Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
 
-#Final values are pretty accurate but I assume thats because of the small dataset so its hard for the models to predict incorrectly
-# I Think I did this correctly?
+plt.figure()
+sns.heatmap(cf2)
+plt.title("Decision Tree Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+
+plt.figure()
+sns.heatmap(cf3)
+plt.title("SVM Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+
+# print("Random Forest Confusion Matrix")
+# print(cf1)
+# print("Decision Tree Confusion Matrix")
+# print(cf2)
+# print("SVM Confusion Matrix")
+# print(cf3)
 
 # ================ 2.6: Stacked Model Performance Analysis ================
 # https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.StackingClassifier.html
@@ -196,6 +227,6 @@ precision4 = precision_score(y_test, y_pred4, average='macro')
 
 accuracy4 = accuracy_score(y_test, y_pred4)
 
-print("Stacking Classifier F1: \t", f14, "\tprecision: ", precision4, "\taccuracy: ", accuracy4)
+# print("Stacking Classifier F1: \t", f14, "\tprecision: ", precision4, "\taccuracy: ", accuracy4)
 
 # ================ 2.7: Model Evaluation ================
