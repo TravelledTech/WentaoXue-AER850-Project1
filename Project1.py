@@ -58,6 +58,7 @@ from sklearn.svm import SVC
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+# Old bad code
 # mdl1 = RandomForestClassifier(n_estimators=100, random_state=42)
 # mdl2 = DecisionTreeClassifier(criterion='gini', max_depth=5, min_samples_split=2, min_samples_leaf=2, random_state=42)
 # # Start with max depth of 5, I got no clue what min samples split and leaf should be, 
@@ -85,6 +86,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, KFold
 
 # 1 and 2 will use gridsearch, 3 will use random
 
+# Pipline: Scale data => model
 pipe1 = Pipeline([("scaler", StandardScaler()),
                   ("clf", RandomForestClassifier(random_state=42))])
 pipe2 = Pipeline([("scaler", StandardScaler()),
@@ -92,6 +94,7 @@ pipe2 = Pipeline([("scaler", StandardScaler()),
 pipe3 = Pipeline([("scaler", StandardScaler()),
                   ("clf", SVC())])
 
+# Parameters for testing
 param_grid1 = {'clf__n_estimators': [5, 10, 20, 30, 50],    #Increase it slightly from the original
     'clf__max_depth': [None, 5, 10, 20],
     'clf__min_samples_split': [2, 5, 10, 15],
@@ -133,6 +136,7 @@ grid3 = RandomizedSearchCV(
     param_grid3,
     cv=cv,
     scoring='accuracy',
+    random_state=42,
     n_jobs=-1
 )
 grid3.fit(x_train, y_train)
@@ -157,21 +161,24 @@ y_pred1 = grid1.best_estimator_.predict(x_test)
 y_pred2 = grid2.best_estimator_.predict(x_test)
 y_pred3 = grid3.best_estimator_.predict(x_test)
 
+# F1 score
 f11 = f1_score(y_test, y_pred1, average='macro')
 f12 = f1_score(y_test, y_pred2, average='macro')
 f13 = f1_score(y_test, y_pred3, average='macro')
 
+# Precision Score
 precision1 = precision_score(y_test, y_pred1, average='macro')
 precision2 = precision_score(y_test, y_pred2, average='macro')
 precision3 = precision_score(y_test, y_pred3, average='macro')
 
+# Accuracy Score
 accuracy1 = accuracy_score(y_test, y_pred1)
 accuracy2 = accuracy_score(y_test, y_pred2)
 accuracy3 = accuracy_score(y_test, y_pred3)
 
-print("Random Forest F1: \t", f11, "\tprecision: ", precision1, "\taccuracy: ", accuracy1)
-print("Decision Tree F1: \t", f12, "\tprecision: ", precision2, "\taccuracy: ", accuracy2)
-print("SVM F1: \t\t\t", f13, "\tprecision: ", precision3, "\taccuracy: ", accuracy3)
+# print("Random Forest F1: \t", f11, "\tprecision: ", precision1, "\taccuracy: ", accuracy1)
+# print("Decision Tree F1: \t", f12, "\tprecision: ", precision2, "\taccuracy: ", accuracy2)
+# print("SVM F1: \t\t\t", f13, "\tprecision: ", precision3, "\taccuracy: ", accuracy3)
 
 #Create confusion matrix
 cf1 = confusion_matrix(y_test, y_pred1)
@@ -197,6 +204,7 @@ plt.title("SVM Confusion Matrix")
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
 
+# Print the text matrix
 # print("Random Forest Confusion Matrix")
 # print(cf1)
 # print("Decision Tree Confusion Matrix")
@@ -209,13 +217,13 @@ plt.ylabel("Actual")
 
 from sklearn.ensemble import StackingClassifier
 
-estimator = [('rf', grid1.best_estimator_), ('dt', grid2.best_estimator_)]
+estimator = [('rf', grid1.best_estimator_), ('svm', grid3.best_estimator_)]
 
 from sklearn.linear_model import LogisticRegression
 
-#I think I need to use logical regression
+# Same stuff, just with stacking classifier
 
-mdl4 = StackingClassifier(estimators = estimator, final_estimator = LogisticRegression())
+mdl4 = StackingClassifier(estimators = estimator, final_estimator = LogisticRegression(max_iter = 5000))    # Increase the iteration, default caused issues
 
 mdl4.fit(x_train, y_train)
 
@@ -229,4 +237,31 @@ accuracy4 = accuracy_score(y_test, y_pred4)
 
 # print("Stacking Classifier F1: \t", f14, "\tprecision: ", precision4, "\taccuracy: ", accuracy4)
 
+cf4 = confusion_matrix(y_test, y_pred4)
+
+plt.figure()
+sns.heatmap(cf4)
+plt.title("Stacking Classifier Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+
 # ================ 2.7: Model Evaluation ================
+import joblib
+joblib.dump(grid1, "RandomForest.pkl")
+joblib.dump(grid2, "DecisionTree.pkl")
+joblib.dump(grid3, "SVC.pkl")
+joblib.dump(mdl4, "StackingClassifier.pkl")
+
+# New dataset 
+in1 = [9.375,3.0625,1.51]
+in2 = [6.995,5.125,0.3875]
+in3 = [0,3.0625,1.93]
+in4 = [9.4,3,1.8]
+in5 = [9.4,3,1.3]
+
+X_new = pd.DataFrame([in1, in2, in3, in4, in5], columns=['X', 'Y', 'Z'])    # Turn the values into something the models can easily read
+
+print("Random Forest:", grid1.predict(X_new))
+print("Decision Tree:", grid2.predict(X_new))
+print("SVM:", grid3.predict(X_new))
+print("Stacked Classifier:", mdl4.predict(X_new))
